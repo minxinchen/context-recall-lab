@@ -1,129 +1,157 @@
-# Context Recall Lab｜跨對話來源召回
+# Context Recall｜可驗證來源的本機檢索工具
 
-在新 session 找回過去討論，交付帶行號、版本指紋及來源類別的**證據包**，供人或 agent 回查。Python 標準函式庫即可執行，不需要 API key。
+為 agent 檢索歷史文件時，同時交付**原文片段、引用位置、來源版本與摘要的原始出處**。讓下游使用者可以回查「這句話從哪裡來、引用的檔案是否已經改過」。
 
-例如：舊摘要寫「部署已否決」，對話卻說「先凍結，等成本確認」。本專案會保留摘要的 `unresolved` 標記、指出配對 raw，讓讀者查回原文；不把摘要的存在當成使用者已批准。
+適用於對話紀錄、研究筆記等小型本機資料集。提供 Python CLI、JSON 與 HTML 輸出，僅使用標準函式庫，無須模型 API。**目前版本：詞彙檢索與引用驗證元件。**
 
-**v0.1：本機詞彙檢索與引用驗證。** 已有可重跑 CLI、JSON／HTML 證據包、合成案例與測試。它不生成答案，也不自動判斷哪個歷史決策現在仍有效。
+## 為什麼需要這個元件？
 
-## 問題與研究目標
+把搜尋結果交給 agent 之前，有三個不同的問題需要處理：
 
-長期 agent 協作累積了原始對話、結構化摘要與審查紀錄。只讀摘要會失去條件；只靠關鍵字找到檔案，又容易引用錯版本、把提案當決策、把模型重建文字當逐字紀錄。
+| 問題 | 例子 | 本專案的處理 |
+|---|---|---|
+| 文件層級混淆 | 摘要寫「方案否決」，原始對話寫「等待成本確認」 | 區分原始紀錄與摘要，保留配對關係與已知審查狀態，供回查 |
+| 引用版本失效 | 索引建立後，原始檔案又被修改 | 搜尋時比對內容指紋，排除已變動來源及其配對摘要 |
+| 引用無法重現 | 答案附檔名，卻找不到所引句子 | 回傳行號、逐字片段及指紋，提供獨立核對命令 |
 
-本專案檢查三件事：
+這些資訊補足了「找到相關文字」之後的交付環節。**語意是否正確、歷史決策是否仍有效，仍需人或下游 agent 判讀。** 本工具不自動生成答案或更新長期記憶。
 
-1. 能否從中英文查詢找回相關片段，並保留原文行號？
-2. 當檔案變動、引用遭修改或摘要未解決時，系統是否呈現正確狀態？
-3. 哪些是機械可驗證的引用一致性，哪些仍需要人或 reviewer 判斷？
+## 一個完整例子：部署是凍結，還是否決？
 
-源於既有 context-save → structured review → context-publish → context-recall 方法。這一版新增可攜本機檢索及驗證層；原本的 NotebookLM 召回仍是另一條工作路徑。來源方法及本次新增工作見[設計與方法](docs/design.md)。
+Repository 內附三份合成文件。以下兩份刻意包含原文與錯誤摘要，用來展示來源資訊如何幫助回查：
 
-## 五分鐘重跑
+| 輸入文件 | 內容節錄 | 清單中預先提供的狀態 |
+|---|---|---|
+| [原始對話](examples/raw/session-a.md) | 「部署方案先凍結，等成本確認後再決定；這不是否決。」 | `kind: raw` |
+| [衍生摘要](examples/structured/session-a.md) | 「部署方案已被否決，每月成交價格為 800 元。」 | `kind: structured`、`review: unresolved` |
 
-環境：Python 3.10+，僅使用標準函式庫；本次實測 macOS／Python 3.13。從 repository 根目錄執行：
+查詢 `部署 凍結 預算` 後，工具返回兩份文件的片段。主要欄位如下；完整輸出由下方命令產生：
+
+| 輸出欄位 | 原始對話命中 | 摘要命中 | 用途 |
+|---|---|---|---|
+| `id` | `session-a-raw` | `session-a-structured` | 識別來源 |
+| `start_line` / `end_line` | 1–9 | 1–6 | 定位逐字片段 |
+| `review` | `unknown` | `unresolved` | 保留清單中的狀態 |
+| `raw_parent.id` | 無 | `session-a-raw` | 從摘要找回原始文件 |
+| `sha256` | 原始檔案指紋 | 摘要檔案指紋 | 核對是否仍為同一版 |
+
+這裡的 `unresolved` **由範例清單提供，並非工具辨識出摘要錯誤**。讀者可依 `raw_parent` 查回原文，辨認「凍結」被改寫成「否決」；程式負責保存及核對引用，不替讀者做這項語意判斷。
+
+### 執行範例
+
+需要 Python 3.10+；本版實測環境為 macOS／Python 3.13。在 repository 根目錄執行：
 
 ```bash
 python3 recall.py build examples/manifest.json runs/demo/index.sqlite
 python3 recall.py search runs/demo/index.sqlite '部署 凍結 預算' --out runs/demo/evidence.json --html runs/demo/evidence.html
 python3 recall.py verify runs/demo/index.sqlite runs/demo/evidence.json
+```
+
+第三個命令的結果：
+
+```json
+{"valid": true, "checked": 2, "issues": []}
+```
+
+`valid` 表示這兩筆引用與來源檔案、行號及登錄資訊一致。錯誤摘要也可以通過引用核對，因為「忠實引用錯誤文字」與「文字本身正確」是不同問題。
+
+打開 `runs/demo/evidence.html` 可閱讀結果。需要只查配對原文時：
+
+```bash
+python3 recall.py search runs/demo/index.sqlite '部署' --source session-a-raw
+```
+
+若之後修改原始對話，再搜尋會排除該原文及其配對摘要；舊證據包的 `verify` 也會失敗。要重新建立索引，請使用新路徑，例如 `runs/demo-v2/`，保留舊版本供比對。
+
+## 架構：建立索引 → 取回片段 → 核對引用
+
+```mermaid
+flowchart LR
+  F["原始文件與摘要"] --> B["build：分段、計算指紋"]
+  M["Manifest：來源分類與配對"] --> B
+  B --> D["SQLite 索引快照"]
+  Q["查詢文字"] --> S["search：詞彙排序與版本檢查"]
+  D --> S
+  F --> S
+  S --> P["JSON 證據包"]
+  S --> H["HTML 閱讀頁面"]
+  H --> U["人或 agent 判讀證據"]
+  P --> V["verify：核對引用與來源"]
+  F --> V
+  D --> V
+  V --> U
+```
+
+`build` 保存最多 20 行、步長 12 行的重疊片段；`search` 依英文詞與中文雙字詞的加權交集排序，抑制同文件的重疊命中。每次搜尋重新核對檔案指紋；`verify` 用同一份讀入的 bytes 檢查指紋與引文，避免不同版本被混用。
+
+| 設計選擇 | 解決的問題 | 代價 |
+|---|---|---|
+| 原始紀錄與摘要分開登錄 | 保留衍生關係，方便回查 | 配對需正確提供，不保證逐句語意支持 |
+| 詞彙檢索作為基線 | 免模型依賴，排序可檢查 | 同義詞、跨語言查詢容易漏失 |
+| 每次搜尋重新計算來源指紋 | 發現索引建立後的檔案變動 | 每次都需讀取全庫文件 |
+| 新索引寫入新路徑 | 避免覆蓋來源或舊證據 | 舊版本需自行管理 |
+
+演算法、資料契約及失敗行為詳見[技術設計](docs/design.md)。
+
+## 驗證結果與適用範圍
+
+| 驗證層 | 已有證據 | 能支持的結論 |
+|---|---|---|
+| 程式行為 | 25 項測試通過，含引用竄改、來源變動、寫入保護及狀態衝突 | 這些受測條件有對應處理 |
+| 可重跑示例 | 5 題合成查詢通過 | 範例流程可執行 |
+| 引用一致性 | 歷史資料回傳的 25 個片段皆通過核對 | 引用與當時檔案內容一致 |
+| 檢索相關性 | 5 題診斷中，3 題命中原先指定來源；另發現 1 題標註錯誤 | 尚不足以估計召回品質 |
+
+測試資料規模為 58 份歷史文件、557 個片段。尚無獨立人工標註集、agent 接手成效或大資料量效能結果。程式目前全掃描片段；適合先驗證小型本機資料的引用流程。
+
+```bash
 python3 evaluate.py
 python3 -m unittest discover -s tests -v
 ```
 
-打開 `runs/demo/evidence.html` 查看結果。範例是刻意編寫的合成對話，包含錯誤摘要；不是客戶案例或真實使用者原話。所有輸出採新路徑，重跑請用 `runs/demo-v2/`，避免覆寫來源或舊證據。
+[實驗報告](docs/experiment-2026-10-08.md)保留研究方法、失敗分析與結果限制；[結果 JSON](docs/results-2026-10-08.json)提供數值紀錄。
 
-從摘要追到原始對話：
+## 技術棧與能力範圍
 
-```bash
-python3 recall.py search runs/demo/index.sqlite '部署' --kind structured
-python3 recall.py search runs/demo/index.sqlite '部署' --source session-a-raw
-```
-
-`raw_parent` 是文件配對，不代表摘要每句已有 raw 支持。`verify` 通過僅表示引用內容、行號、metadata 和當次讀取的來源版本一致，**不表示文字內容正確或使用者批准**。
-
-## 流程圖
-
-```mermaid
-flowchart TD
-  M["Manifest 來源清單與分類"] --> V["驗證 ID、檔案、raw 配對"]
-  V --> I["SQLite 保存片段與 SHA-256"]
-  Q["中英文查詢"] --> S["英文詞＋中文雙字詞排序"]
-  I --> S
-  S --> G{"來源與 raw 配對版本仍一致？"}
-  G -->|否| X["排除失效來源並列出原因"]
-  G -->|是| P["原文片段＋行號＋審查狀態"]
-  P --> R["回查配對 raw"]
-  P --> C["verify：同一 byte snapshot 核對"]
-  R --> H["人或 agent 判讀條件及歷史適用性"]
-  C --> H
-```
-
-## 心智圖
+| English | 中文 | 實際用途 |
+|---|---|---|
+| Python CLI | 命令列介面 | 匯入、建索引、搜尋與引用驗證 |
+| SQLite | 本機資料庫 | 保存片段及來源 metadata，排序由 Python 執行 |
+| CJK bigrams | 中文雙字詞 | 建立無分詞模型依賴的中文檢索基線 |
+| IDF-weighted overlap | 稀有詞加權交集 | 對候選片段排序；分數不代表信心值 |
+| SHA-256 | 內容指紋 | 核對來源版本 |
+| HTML / JSON | 閱讀頁面／結構化輸出 | 將同一組引用交給人或 agent |
 
 ```mermaid
 mindmap
-  root((跨 session 來源召回))
-    來源
-      raw 原始素材
-      structured 摘要
-      reconstructed 重建
-      unknown 未核實
+  root((可驗證來源的檢索))
+    資料模型
+      原始紀錄與摘要
+      來源類別
+      文件配對
     檢索
-      中英文詞元
-      重疊行視窗
-      排序與去重
-    驗證
-      SHA256 版本
-      行號與逐字內容
-      raw 配對
+      詞元與分段
+      候選排序
       失效來源排除
-    邊界
-      命中不等於答案
-      審查通過不等於批准
-      歷史不等於目前
-      不自動執行來源指令
+    引用驗證
+      逐字片段
+      行號
+      版本指紋
+    下游仍需判讀
+      語意支持
+      決策時效
+      是否足以回答
 ```
 
-## 技術棧
+## 使用自己的資料
 
-| English | 中文 | 在此專案的作用 |
-|---|---|---|
-| Python CLI | 命令列程式 | 建索引、搜尋、驗證、匯入 |
-| SQLite | 本機關聯式資料庫 | 保存來源 metadata、片段與詞元；查詢目前由 Python 全掃描 |
-| CJK bigrams | 中文連續雙字詞 | 不安裝分詞模型的中文詞彙基線 |
-| IDF-weighted overlap | 依詞彙稀有度加權的重疊排序 | 排序候選；不是 BM25、向量相似度或信心值 |
-| SHA-256 | 內容指紋 | 綁定來源版本，檢出變動 |
-| Atomic exclusive publication | 原子排他發布 | 不覆蓋既有索引或 JSON 產物 |
-| HTML / JSON | 閱讀頁面／結構化介面 | 同一證據包供人與 agent 使用 |
-| unittest | 自動測試 | 驗證竄改、缺檔、失效來源與檔案保護 |
-
-## 目前結果
-
-- 25 項程式測試通過；5 題合成驗收可用 `evaluate.py` 重跑。
-- 本機歷史資料：29 組 raw／structured、58 份文件、557 個片段。
-- 5 題歷史查詢，預先指定來源有 3 題進前五名；1 題無資料查詢沒有命中。這是開發診斷，不是準確率基準。
-- 25 個回傳片段的引用一致性檢查通過。其中一題預期來源後來發現標錯分段；保留原始失敗，不回填漂亮分數。
-- 獨立 reviewer 發現覆寫與兩次讀檔競爭問題，已修正並加入回歸測試。
-
-完整背景、材料與方法、結果及限制：[實驗報告](docs/experiment-2026-10-08.md)。
-
-## 匯入自己的紀錄
-
-已有 `raw/*.raw.md`、`structured/*.structured.md`，可執行：
+依 [manifest 範例](examples/manifest.json)登錄文件，或匯入既有 `raw/*.raw.md` 與 `structured/*.structured.md`：
 
 ```bash
 python3 import_context.py /path/to/context_log runs/my-context
 python3 recall.py search runs/my-context/index.sqlite '要找的詞' --kind raw
 ```
 
-匯入器以共同檔名前綴配對，讀取選用的 `metrics.jsonl`。無法驗證轉錄真實性的 raw 一律標 `unknown`；`pass`／`unresolved` 只保存歷史宣告，不保證對應目前檔案。孤立摘要會列出、不加入索引。
+匯入器以共同檔名前綴配對。來源真實性無法確認時標為 `unknown`；歷史審查與文件狀態衝突時列入 audit。私人索引與輸出保存在 Git 忽略的 `runs/`，可能包含原文，分享前需檢查。
 
-私人來源、索引及搜尋輸出放在 Git 忽略的 `runs/`；HTML／JSON 可能含私人原文，分享前需自行檢查。程式不連網、不上傳 NotebookLM、不修改正式 wiki。
-
-## 適用範圍與下一步
-
-目前適合小型、可讀取完整檔案的本機資料集。每次搜尋會檢查全庫檔案 hash，並全掃描片段；沒有大資料量效能驗證。中文同義詞、跨語言問題與語意改寫仍可能漏召回，通用詞也可能回傳不相關片段。
-
-下一個可衡量的工作是建立獨立標註的查詢集，再比較此詞彙基線與向量／混合檢索。先量測錯在哪裡，再決定要加什麼。來源內容即使含指令，也只能作為資料；下游 agent 仍需自己的指令邊界，程式沒有聲稱消除 prompt injection。
-
-Author: Nio (Master) · Implementation: Codex · 2026-10-08
+Author: Nio (Master) · Implementation: Codex

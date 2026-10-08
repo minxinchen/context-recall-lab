@@ -1,16 +1,17 @@
-# 設計與方法
+# 技術設計：來源、索引與引用的一致性
 
-## 既有方法的來源
+## 系統責任與介面
 
-此專案承接使用者已建立的三段工作方式：context-save 保存 raw 與六段 structured，writer／evaluator 校驗摘要；context-publish 留發布紀錄；context-recall 從 NotebookLM 取引用並回原文核對。既有設計將「穩定規則」「特定對話論述」「目前任務狀態」分開。
+系統接收文件及來源清單，輸出可回查的候選片段。核心介面有三個：`build` 建立來源快照；`search` 返回帶來源資訊的片段；`verify` 核對已保存引用。生成答案、判定決策是否有效與更新正式規則，由下游應用負責。
 
-本次讀取原技能定義、提取 schema、context_log 與發布紀錄作為設計材料。原始技能及私人對話沒有複製進 repository。沒有以新 Python 程式冒稱為歷史原始實作，也沒有執行雲端發布。
+SQLite 保存片段與 metadata；Python 執行詞彙排序及來源核對。索引是可重新建立的衍生資料，原始文件仍是引用核對的依據。
 
-## 本次工程範圍
-
-新增 `recall.py` 與 `import_context.py`：explicit manifest → immutable index snapshot → ranked excerpts → citation validation。沒有重新訓練模型權重，也沒有實作生成式摘要。SQLite 保存資料，Python 執行排序；目前不使用 FTS、embedding 或 reranker。
-
-單一目的：給下一個 session 一份可回查的歷史證據包。正式規則仍應讀其 canonical 入口，不能從搜尋結果推定最新指令。
+| 模組 | 輸入 | 輸出 | 失敗時的行為 |
+|---|---|---|---|
+| `import_context.py` | raw／structured 目錄、選用的歷史 metrics | manifest、audit、索引 | 列出孤立摘要與狀態衝突；不修改來源 |
+| `build` | manifest 與文件 | SQLite 快照 | 缺檔、配對錯誤或既有輸出路徑時中止 |
+| `search` | 索引、查詢、選用的來源篩選 | JSON／HTML 片段包 | 排除變動來源；無詞元命中回 no_match |
+| `verify` | 索引、已保存片段包、目前文件 | valid、checked、issues | 引文或來源不一致回失敗 |
 
 ## 資料契約
 
@@ -44,8 +45,10 @@ CLI 缺檔、錯誤 schema、空查詢回 exit 2；引用核對失敗回 exit 1�
 
 HTML 轉義來源文字，不執行原文 HTML。來源字句不會作為 shell 或工具指令執行。下游 LLM 必須另行防止把取回的文字當成指令，本工具沒有提供模型隔離沙箱。
 
-## 取捨
+## 效能與檢索取捨
 
-選本機可重跑詞彙基線，是為了先測引用與失敗邊界，避免把外部服務的回答能力誤算成自己的檢索工程能力。代價是語意召回較弱、全檔 hash 與全片段掃描不適合大規模資料。
+詞彙基線不需外部模型，便於單獨測量引用與檢索行為。每次搜尋都讀取全庫來源並掃描所有片段，因此來源總位元組數與片段數增加時，I/O 與排序前處理成本也會增加。尚未進行效能量測；大規模部署需要另外評估增量驗證及檢索索引。
+
+向量檢索可以作為後續候選，但無法單靠更換排序方法解決引文過時或原始資料配對錯誤。引用驗證介面可以保留，檢索演算法則應用同一份獨立查詢集比較。
 
 未做自動決策抽取、NotebookLM adapter、向量索引、衝突裁決或自動 memory 更新。這些應依查詢集與實際需求分別驗收，不能由本版的 citation PASS 推論已完成。
