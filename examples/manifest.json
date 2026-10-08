@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "sources": [
+    {"id":"session-a-raw","path":"raw/session-a.md","title":"部署方案討論（合成）","kind":"raw","provenance":"synthetic","review":"unknown"},
+    {"id":"session-a-structured","path":"structured/session-a.md","title":"部署摘要（刻意有誤）","kind":"structured","provenance":"synthetic","review":"unresolved","raw_id":"session-a-raw"},
+    {"id":"session-b-raw","path":"raw/session-b.md","title":"API 設定討論（合成）","kind":"raw","provenance":"synthetic","review":"unknown"}
+  ]
+}

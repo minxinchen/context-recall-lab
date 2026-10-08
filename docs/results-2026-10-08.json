@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-08",
+  "method": "developer diagnostic; no human gold standard",
+  "inventory": {
+    "raw_files": 29,
+    "structured_files": 29,
+    "paired": 29,
+    "metrics_rows": 27,
+    "structured_review_counts": {
+      "unknown": 2,
+      "unresolved": 7,
+      "pass": 20
+    },
+    "index": {
+      "sources": 58,
+      "chunks": 557,
+      "version": 1
+    }
+  },
+  "historical_queries": {
+    "positive": 5,
+    "original_expected_source_in_top5": 3,
+    "negative": 1,
+    "negative_no_match": 1,
+    "verified_citations": 25,
+    "label_error_found_after_run": 1
+  },
+  "cases": [
+    {
+      "id": "storage",
+      "original_expected_in_top5": true,
+      "citations_checked": 5
+    },
+    {
+      "id": "freeze",
+      "original_expected_in_top5": true,
+      "citations_checked": 5
+    },
+    {
+      "id": "logical-vault",
+      "original_expected_in_top5": true,
+      "citations_checked": 5
+    },
+    {
+      "id": "handoff",
+      "original_expected_in_top5": false,
+      "citations_checked": 5
+    },
+    {
+      "id": "iterations",
+      "original_expected_in_top5": false,
+      "citations_checked": 5
+    },
+    {
+      "id": "absent",
+      "original_expected_in_top5": true,
+      "citations_checked": 0
+    }
+  ],
+  "private_evidence_sha256": "fc504813a97ffacd02ebb82dc7c349668864ee77806e2b48339168e3c0d45b88",
+  "limitations": [
+    "private raw data not distributed",
+    "historical review declarations not current verdicts",
+    "citation fidelity does not measure relevance",
+    "one query expected source label was wrong"
+  ],
+  "synthetic_cases": 5,
+  "unit_tests": 25,
+  "final_import_review_counts": {
+    "pass": 20,
+    "unresolved": 6,
+    "unknown": 3
+  },
+  "final_import_review_conflicts": 1
+}
