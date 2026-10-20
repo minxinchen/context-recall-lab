@@ -25,6 +25,10 @@ Wiki 與 skill 可以由同一組紀錄分別提煉，不必強制先後。Wiki 
 
 **歷史案例：固定化對話提取。** Nio 在 2026-04-22 提出 raw／structured 分開保存，讓未來能將運作方法提取成 skill 或 subagent，並要求固定提取流程。Claude 隨後建立六段 schema 的 `context-extract` 原型。這證明需求曾落成操作規格；尚不能證明提取結果穩定，也沒有證據支持「已經自動產生可靠 skill」。[案例、現況與缺口](docs/knowledge-pipeline.md)
 
+## 實作示範：從歷史失敗形成審查方法
+
+[主張強度審查案例](examples/claim-strength/README.md)串起實際檢索、引用核對、Wiki／skill 候選與新案例獨立試跑。清楚區分程式取回證據、agent 提煉，以及尚未證明的方法效果。
+
 ## 為什麼需要這個元件？
 
 把搜尋結果交給 agent 之前，有三個不同的問題需要處理：

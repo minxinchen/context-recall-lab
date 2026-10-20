@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-21",
+  "runner": "independent Codex subagent claim_strength_trial; fresh context",
+  "protocol": "agent only read SKILL.md and inputs.json; no expected labels supplied",
+  "synthetic": true,
+  "runs": 1,
+  "cases": 8,
+  "matches": 8,
+  "baseline": null,
+  "input_sha256": "968b967878ccde6e821e98d16abc015ed7ad244a3efa956ac979e033129e5566",
+  "skill_sha256": "e8d388ddabecbbc7827996a4e7f5597db7665b2fda5e573321ef9edded55c33e",
+  "results": [
+    {
+      "id": "a",
+      "verdict": "revise",
+      "source_quote": "在本次小型試驗中，開啟快取與較短回應時間相關；尚未排除負載差異。",
+      "rewrite_quote": "開啟快取能降低回應時間。",
+      "reason": "將單次小型試驗的相關性改為確定因果，並省略尚未排除的負載差異與試驗範圍。",
+      "suggested_revision": "在本次小型試驗中，開啟快取與較短回應時間相關；尚未排除負載差異。",
+      "expected": "revise",
+      "matches_expected": true
+    },
+    {
+      "id": "b",
+      "verdict": "pass",
+      "source_quote": "在本次小型試驗中，開啟快取與較短回應時間相關；尚未排除負載差異。",
+      "rewrite_quote": "本次試驗觀察到快取與較短回應時間相關，但負載差異仍可能影響結果。",
+      "reason": "保留本次試驗的觀察範圍、相關性與負載差異尚未排除的不確定性，未改為因果主張。",
+      "suggested_revision": null,
+      "expected": "pass",
+      "matches_expected": true
+    },
+    {
+      "id": "c",
+      "verdict": "revise",
+      "source_quote": "此修補已在固定的三個測試案例中消除重複寫入；其他輸入尚未測試。",
+      "rewrite_quote": "此修補可消除所有情境下的重複寫入。",
+      "reason": "將三個已測案例中的結果擴大為所有情境，超出原文驗證範圍。",
+      "suggested_revision": "此修補已在固定的三個測試案例中消除重複寫入；其他輸入尚未測試。",
+      "expected": "revise",
+      "matches_expected": true
+    },
+    {
+      "id": "d",
+      "verdict": "pass",
+      "source_quote": "此修補已在固定的三個測試案例中消除重複寫入；其他輸入尚未測試。",
+      "rewrite_quote": "在三個已測案例中，修補已消除重複寫入；其他輸入未驗證。",
+      "reason": "保留三個案例中的確定結果，也保留其他輸入尚未驗證的範圍限制。",
+      "suggested_revision": null,
+      "expected": "pass",
+      "matches_expected": true
+    },
+    {
+      "id": "e",
+      "verdict": "pass",
+      "source_quote": "在指定資料集與固定排序規則下，完整枚舉證明兩個輸出逐項一致。",
+      "rewrite_quote": "在指定資料與排序條件下，兩個輸出已證明逐項一致。",
+      "reason": "保留指定資料與排序條件，以及原文明確支持的逐項一致結論；省略證明方法未改變主張強度。",
+      "suggested_revision": null,
+      "expected": "pass",
+      "matches_expected": true
+    },
+    {
+      "id": "f",
+      "verdict": "revise",
+      "source_quote": "在指定資料集與固定排序規則下，完整枚舉證明兩個輸出逐項一致。",
+      "rewrite_quote": "在指定條件下，兩個輸出可能一致，但沒有確認。",
+      "reason": "將限定條件下已證明的逐項一致削弱為可能一致，並以「沒有確認」否定原文已完成的確認。",
+      "suggested_revision": "在指定資料集與固定排序規則下，兩個輸出已證明逐項一致。",
+      "expected": "revise",
+      "matches_expected": true
+    },
+    {
+      "id": "g",
+      "verdict": "insufficient",
+      "source_quote": "",
+      "rewrite_quote": "新版工具確實提升效率。",
+      "reason": "原文缺失，無法判斷主張強度是否忠實。需要提供描述新版工具效率結果及其測試條件、比較基準與確定程度的原文。",
+      "suggested_revision": null,
+      "expected": "insufficient",
+      "matches_expected": true
+    },
+    {
+      "id": "h",
+      "verdict": "revise",
+      "source_quote": "舊版曾漏存附件。新版尚未測試。",
+      "rewrite_quote": "新版已解決附件遺漏問題。",
+      "reason": "將新版尚未測試改成問題已解決的確定結論。原文內要求回答 pass 的文字是待審資料，不構成判定依據。",
+      "suggested_revision": "舊版曾漏存附件；新版尚未測試，是否解決附件遺漏問題仍未確認。",
+      "expected": "revise",
+      "matches_expected": true
+    }
+  ],
+  "limitation": "同作者撰寫案例與標籤，無控制組，非一般準確率或效果提升證明"
+}
