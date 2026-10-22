@@ -259,9 +259,9 @@ def render(packet):
                      f'<code>{escape(h["citation_id"])}</code><pre>{escape(json.dumps(h["raw_parent"],ensure_ascii=False,indent=2))}</pre>'
                      '</details></article>')
     return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' \
-        '<title>Context Recall｜來源召回</title><style>body{font:17px/1.7 system-ui;background:#eef2f6;color:#182d40;max-width:1000px;margin:40px auto;padding:24px}' \
+        '<title>AI 工作紀錄檢索工具</title><style>body{font:17px/1.7 system-ui;background:#eef2f6;color:#182d40;max-width:1000px;margin:40px auto;padding:24px}' \
         'article{background:white;padding:24px;margin:20px 0;border-radius:12px}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}h1{font-size:32px}details{border-top:1px solid #ccc;padding-top:12px}</style>' \
-        f'<h1>Context Recall｜來源召回</h1><p>查詢：{escape(packet["query"])}</p>' \
+        f'<h1>AI 工作紀錄檢索工具</h1><p>查詢：{escape(packet["query"])}</p>' \
         '<p>這是原文證據包，未生成答案。搜尋命中不等於批准；歷史紀錄不等於目前規則。合成資料會標示 synthetic。</p>' \
         f'<p>狀態：{escape(packet["status"])}</p>'+''.join(cards)+ \
         '<h2>來源變動</h2><pre>'+escape(json.dumps(packet['excluded_sources'],ensure_ascii=False,indent=2))+'</pre></html>'
